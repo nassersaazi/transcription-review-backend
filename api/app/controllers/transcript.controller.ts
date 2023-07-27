@@ -12,7 +12,7 @@ import {
 import { MAXPENDINGREVIEWS } from "../utils/constants";
 
 // Create and Save a new Transcript
-export function create(req: Request, res: Response) {
+export async function create(req: Request, res: Response) {
   const { content } = req.body;
   // Validate request
   if (!content) {
@@ -40,11 +40,11 @@ export function create(req: Request, res: Response) {
     originalContent: content,
     content: content,
     transcriptHash: generateUniqueStr(),
-    status: TranscriptStatus.not_queued,
+    status: TranscriptStatus.queued,
   };
 
   // Save Transcript in the database
-  Transcript.create(transcript)
+  await Transcript.create(transcript)
     .then((data) => {
       res.send(data);
     })
@@ -57,7 +57,7 @@ export function create(req: Request, res: Response) {
 }
 
 // Retrieve all unarchived and queued transcripts from the database.
-export function findAll(req: Request, res: Response) {
+export async function findAll(req: Request, res: Response) {
   let condition = {
     [Op.and]: [
       { archivedAt: null },
@@ -66,7 +66,7 @@ export function findAll(req: Request, res: Response) {
     ],
   };
 
-  Transcript.findAll({ where: condition })
+  await Transcript.findAll({ where: condition })
     .then((data) => {
       const transcripts: Transcript[] = [];
       const appendTotalWords = data.map(async (transcript) => {
@@ -120,16 +120,9 @@ export async function findOne(req: Request, res: Response) {
 export async function update(req: Request, res: Response) {
   const id = req.params.id;
 
-  if (!id) {
-    res.status(400).send({
-      message: "transcript id cannot be empty!",
-    });
-    return;
-  }
-
   if (!req.body) {
     res.status(400).send({
-      message: "Request body cannot be empty!",
+      message: "Content cannot be empty!",
     });
     return;
   }
@@ -228,7 +221,8 @@ export async function claim(req: Request, res: Response) {
   });
   if (activeReview.length) {
     res.status(403).send({
-      message: "Cannot claim transcript, user has an active review",
+      message:
+        "Please finish editing & submit the transcript you're working on first",
     });
     return;
   }
